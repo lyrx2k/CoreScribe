@@ -2,6 +2,8 @@
 
 **Blazingly fast, local-first voice transcription for students and researchers.** Built with 🦀 Rust, powered by OpenAI's Whisper via `WGPU`.
 
+![Interface](assets/c0e9cc8e-5a35-48fc-9f3a-c22690ebe78c.png)
+
 ---
 
 ## 🎓 Why CoreScribe?
