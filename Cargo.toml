@@ -1,0 +1,26 @@
+[package]
+name = "corescribe"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "corescribe"
+path = "src/main.rs"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"
+
+[dependencies]
+windows = { version = "0.52", features = ["Win32_System_Diagnostics_ToolHelp"] }
+wgpu = "0.19"
+eframe = "0.27"
+egui = "0.27"
+tokio = { version = "1", features = ["rt", "sync"] }
+rfd = "0.14"
+hound = "3.5"
+ureq = "2.12"
+zip = "0.6"
