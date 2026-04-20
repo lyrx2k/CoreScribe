@@ -1,6 +1,8 @@
 use std::fs;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
@@ -150,17 +152,13 @@ impl WhisperModel {
         println!("   Searching for whisper.exe...");
         fn find_exe(dir: &PathBuf) -> Option<PathBuf> {
             if let Ok(entries) = fs::read_dir(dir) {
-                for entry in entries {
-                    if let Ok(entry) = entry {
-                        let path = entry.path();
-                        if path.file_name().map_or(false, |n| n == "whisper.exe") {
-                            return Some(path);
-                        }
-                        if path.is_dir() {
-                            if let Some(found) = find_exe(&path) {
-                                return Some(found);
-                            }
-                        }
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    if path.file_name().is_some_and(|n| n == "whisper.exe") {
+                        return Some(path);
+                    }
+                    if path.is_dir() && let Some(found) = find_exe(&path) {
+                        return Some(found);
                     }
                 }
             }
@@ -222,6 +220,7 @@ impl WhisperModel {
         samples: &[f32],
         language: &str,
         show_timestamps: bool,
+        cancel: Arc<AtomicBool>,
     ) -> Result<String, String> {
         if samples.is_empty() {
             return Err("No audio samples provided".to_string());
@@ -238,7 +237,7 @@ impl WhisperModel {
 
         let samples_i16: Vec<i16> = samples
             .iter()
-            .map(|&s| ((s.max(-1.0).min(1.0)) * 32767.0) as i16)
+            .map(|&s| (s.clamp(-1.0, 1.0) * 32767.0) as i16)
             .collect();
 
         let spec = hound::WavSpec {
@@ -300,13 +299,22 @@ impl WhisperModel {
             cmd.arg("-nt");
         }
 
-        let status = cmd.status()
+        let mut child = cmd
+            .spawn()
             .map_err(|e| format!("Failed to run main.exe: {}", e))?;
 
-        println!(
-            "   Whisper exit code: {}",
-            status.code().unwrap_or(-1)
-        );
+        // Poll until done or cancelled
+        let status = loop {
+            if cancel.load(Ordering::Relaxed) {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err("Cancelled".to_string());
+            }
+            match child.try_wait().map_err(|e| format!("Process error: {}", e))? {
+                Some(status) => break status,
+                None => std::thread::sleep(std::time::Duration::from_millis(100)),
+            }
+        };
 
         if !status.success() {
             return Err(format!(

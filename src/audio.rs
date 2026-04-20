@@ -42,7 +42,7 @@ fn decode_wav<P: AsRef<Path>>(path: P) -> Result<AudioData, String> {
                 hound::WavReader::open(path).map_err(|e| format!("Failed to reopen WAV: {}", e))?;
             for sample in reader.into_samples::<i32>() {
                 let s = sample.map_err(|e| format!("Sample error: {}", e))?;
-                samples.push((s >> 8) as f32 / I24::MAX as f32);
+                samples.push((s >> 8) as f32 / I24::MAX);
             }
         }
         32 => {
