@@ -2,6 +2,7 @@
 
 mod audio;
 mod inference;
+mod updater;
 
 use eframe::egui;
 use inference::{ModelSize, WhisperConfig, WhisperModel};
@@ -23,6 +24,7 @@ fn main() -> Result<(), eframe::Error> {
 enum PendingAction {
     None,
     DeleteCache,
+    UpdateApp(String),
 }
 
 struct AppDialog {
@@ -46,6 +48,16 @@ enum ProcessStage {
 enum Tab {
     Transcriber,
     Settings,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+enum UpdateStatus {
+    Idle,
+    Checking,
+    UpToDate,
+    Available(String),
+    Downloading,
+    Error(String),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -92,6 +104,7 @@ struct MyApp {
     save_pending: bool,
     cancel_flag: Arc<AtomicBool>,
     pending_dialog: Option<AppDialog>,
+    update_status: UpdateStatus,
 }
 
 impl Default for MyApp {
@@ -112,6 +125,7 @@ impl Default for MyApp {
             save_pending: false,
             cancel_flag: Arc::new(AtomicBool::new(false)),
             pending_dialog: None,
+            update_status: UpdateStatus::Idle,
         }
     }
 }
@@ -277,6 +291,9 @@ impl eframe::App for MyApp {
                                 PendingAction::DeleteCache => {
                                     delete_all_cache();
                                     std::process::exit(0);
+                                }
+                                PendingAction::UpdateApp(tag) => {
+                                    let _ = updater::download_and_install(&tag);
                                 }
                                 PendingAction::None => {}
                             }
@@ -630,7 +647,59 @@ impl MyApp {
 
         ui.separator();
         ui.label("About");
-        ui.label("CoreScribe v0.1.1 by lyrx2k");
+        let version = env!("CARGO_PKG_VERSION");
+        ui.horizontal(|ui| {
+            ui.label(format!("CoreScribe v{} by lyrx2k", version));
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                match &self.update_status {
+                    UpdateStatus::Idle => {
+                        if ui.button("Check for Updates").clicked() {
+                            match updater::check_for_update() {
+                                Ok(Some(latest)) => {
+                                    self.update_status = UpdateStatus::Available(latest);
+                                }
+                                Ok(None) => {
+                                    self.update_status = UpdateStatus::UpToDate;
+                                }
+                                Err(e) => {
+                                    self.update_status = UpdateStatus::Error(e);
+                                }
+                            }
+                        }
+                    }
+                    UpdateStatus::UpToDate => {
+                        ui.colored_label(
+                            egui::Color32::from_rgb(100, 200, 100),
+                            "You are up to date",
+                        );
+                    }
+                    UpdateStatus::Available(tag) => {
+                        ui.colored_label(
+                            egui::Color32::from_rgb(255, 180, 80),
+                            format!("v{} available", tag),
+                        );
+                        if ui.button("Update Now").clicked() {
+                            self.pending_dialog = Some(AppDialog {
+                                title: "Update CoreScribe".to_string(),
+                                message: format!(
+                                    "A new version ({}) is available.\n\nThe app will download and restart.\n\nProceed?",
+                                    tag
+                                ),
+                                is_warning: false,
+                                action: PendingAction::UpdateApp(tag.clone()),
+                            });
+                        }
+                    }
+                    UpdateStatus::Error(e) => {
+                        ui.colored_label(
+                            egui::Color32::from_rgb(220, 80, 80),
+                            format!("Error: {}", e),
+                        );
+                    }
+                    _ => {}
+                }
+            });
+        });
         ui.label("Local speech-to-text with Whisper.cpp");
     }
 }
