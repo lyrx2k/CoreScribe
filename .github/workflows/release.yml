@@ -16,8 +16,15 @@ jobs:
       - name: Build Release
         run: cargo build --release
 
-      - name: Check if exe exists
-        run: dir target\release\corescribe.exe
+      - name: List build output
+        run: |
+          echo "Checking target/release directory:"
+          dir target\release\corescribe.exe
+          if (!(Test-Path "target\release\corescribe.exe")) {
+            echo "ERROR: corescribe.exe not found!"
+            dir target\release\
+            exit 1
+          }
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
