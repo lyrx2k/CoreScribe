@@ -74,7 +74,7 @@ pub fn download_and_install(tag: &str) -> Result<(), String> {
             .map_err(|e| format!("Failed to write update script: {}", e))?;
 
         std::process::Command::new("cmd")
-            .args(&["/c", &bat_path.to_string_lossy().to_string()])
+            .args(["/c", bat_path.to_string_lossy().as_ref()])
             .creation_flags(CREATE_NO_WINDOW)
             .spawn()
             .map_err(|e| format!("Failed to spawn updater: {}", e))?;
@@ -88,7 +88,7 @@ fn is_newer(current: &str, latest: &str) -> bool {
         let v = v.trim_start_matches('v');
         let parts: Vec<u32> = v.split('.').filter_map(|p| p.parse().ok()).collect();
         (
-            parts.get(0).copied().unwrap_or(0),
+            parts.first().copied().unwrap_or(0),
             parts.get(1).copied().unwrap_or(0),
             parts.get(2).copied().unwrap_or(0),
         )

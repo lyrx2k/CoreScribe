@@ -13,7 +13,7 @@ fn main() -> Result<(), eframe::Error> {
     println!("🎙️ CoreScribe - Starting...");
 
     let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default().with_inner_size([1000.0, 700.0]),
+        viewport: egui::ViewportBuilder::default().with_inner_size([1200.0, 750.0]),
         ..Default::default()
     };
 
@@ -104,6 +104,8 @@ struct MyApp {
     pending_dialog: Option<AppDialog>,
     update_status: UpdateStatus,
     auto_checked: bool,
+    start_time: String,
+    stop_time: String,
 }
 
 impl Default for MyApp {
@@ -126,6 +128,8 @@ impl Default for MyApp {
             pending_dialog: None,
             update_status: UpdateStatus::Idle,
             auto_checked: false,
+            start_time: "00:00:00".to_string(),
+            stop_time: "00:00:00".to_string(),
         }
     }
 }
@@ -481,6 +485,22 @@ impl MyApp {
         });
         ui.add_space(12.0);
 
+        // Start/Stop time inputs
+        ui.horizontal(|ui| {
+            ui.label("Trim audio:");
+            ui.label("From");
+            ui.text_edit_singleline(&mut self.start_time);
+            ui.label("(MM:SS)");
+            ui.label("To");
+            ui.text_edit_singleline(&mut self.stop_time);
+            ui.label("(MM:SS)");
+            if ui.button("Reset").clicked() {
+                self.start_time = "00:00:00".to_string();
+                self.stop_time = "00:00:00".to_string();
+            }
+        });
+        ui.add_space(12.0);
+
         // Transcribe + Cancel buttons
         let button_width = if self.is_processing { 260.0 } else { 340.0 };
         ui.horizontal(|ui| {
@@ -514,6 +534,8 @@ impl MyApp {
                 let language = self.language;
                 let show_timestamps = self.show_timestamps;
                 let cancel = Arc::clone(&self.cancel_flag);
+                let start_time = self.start_time.clone();
+                let stop_time = self.stop_time.clone();
                 std::thread::spawn(move || {
                     if cancel.load(Ordering::Relaxed) {
                         if let Ok(mut res) = result.lock() {
@@ -527,6 +549,8 @@ impl MyApp {
                         language,
                         show_timestamps,
                         Arc::clone(&cancel),
+                        &start_time,
+                        &stop_time,
                     ) {
                         Ok(transcription) => {
                             if let Ok(mut res) = result.lock() {
@@ -749,6 +773,8 @@ fn process_audio(
     language: Language,
     show_timestamps: bool,
     cancel: Arc<AtomicBool>,
+    start_time: &str,
+    stop_time: &str,
 ) -> Result<String, String> {
     if cancel.load(Ordering::Relaxed) {
         return Err("Cancelled".to_string());
@@ -760,7 +786,36 @@ fn process_audio(
         return Err("Cancelled".to_string());
     }
     println!("🔄 Resampling to 16kHz mono...");
-    let resampled = audio::resample_to_whisper(&audio_data)?;
+    let mut resampled = audio::resample_to_whisper(&audio_data)?;
+
+    // Trim audio if start/stop times are specified (not default "00:00:00")
+    if start_time != "00:00:00" || stop_time != "00:00:00" {
+        let start_sample = if start_time == "00:00:00" {
+            0
+        } else {
+            parse_time_to_samples(start_time, 16000)
+                .ok_or(format!("Invalid start time: {}", start_time))?
+        };
+
+        let stop_sample = if stop_time == "00:00:00" {
+            resampled.len()
+        } else {
+            parse_time_to_samples(stop_time, 16000)
+                .ok_or(format!("Invalid stop time: {}", stop_time))?
+        };
+
+        let stop_sample = stop_sample.min(resampled.len());
+
+        if start_sample >= stop_sample {
+            return Err("Start time must be before stop time".to_string());
+        }
+        if start_sample >= resampled.len() {
+            return Err("Start time is beyond audio duration".to_string());
+        }
+        resampled = resampled[start_sample..stop_sample].to_vec();
+        println!("🔪 Trimmed audio: {}s to {}s",
+            start_sample / 16000, stop_sample / 16000);
+    }
 
     if cancel.load(Ordering::Relaxed) {
         return Err("Cancelled".to_string());
@@ -811,6 +866,36 @@ fn filter_timestamps(text: &str) -> String {
         .join("\n")
         .trim()
         .to_string()
+}
+
+fn parse_time_to_samples(time_str: &str, sample_rate: u32) -> Option<usize> {
+    let time_str = time_str.trim();
+    if time_str == "00:00:00" || time_str.is_empty() {
+        return None;
+    }
+    let parts: Vec<&str> = time_str.split(':').collect();
+
+    let (hours, minutes, seconds) = if parts.len() == 3 {
+        let h = parts[0].parse::<u32>().ok()?;
+        let m = parts[1].parse::<u32>().ok()?;
+        let s = parts[2].parse::<u32>().ok()?;
+        if m >= 60 || s >= 60 {
+            return None;
+        }
+        (h, m, s)
+    } else if parts.len() == 2 {
+        let m = parts[0].parse::<u32>().ok()?;
+        let s = parts[1].parse::<u32>().ok()?;
+        if s >= 60 {
+            return None;
+        }
+        (0, m, s)
+    } else {
+        return None;
+    };
+
+    let total_seconds = (hours * 3600 + minutes * 60 + seconds) as usize;
+    Some(total_seconds * sample_rate as usize)
 }
 
 fn delete_all_cache() {

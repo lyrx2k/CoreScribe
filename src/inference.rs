@@ -273,9 +273,13 @@ impl WhisperModel {
         println!("   Model: {}", self.model_path.display());
         println!("   Audio: {}", temp_wav.display());
 
-        // Whisper adds .txt to the input filename, so output will be whisper_temp.wav.txt
-        let output_txt = temp_wav.with_extension("wav.txt");
-        let _ = fs::remove_file(&output_txt);
+        // Whisper adds .txt or .srt to the input filename
+        let output_file = if show_timestamps {
+            temp_wav.with_extension("wav.srt")
+        } else {
+            temp_wav.with_extension("wav.txt")
+        };
+        let _ = fs::remove_file(&output_file);
 
         let mut cmd = Command::new(&self.whisper_exe);
 
@@ -292,11 +296,12 @@ impl WhisperModel {
             .arg("-m")
             .arg(self.model_path.to_string_lossy().to_string())
             .arg("-l")
-            .arg(language)
-            .arg("-otxt");
+            .arg(language);
 
-        if !show_timestamps {
-            cmd.arg("-nt");
+        if show_timestamps {
+            cmd.arg("-osrt");
+        } else {
+            cmd.arg("-otxt");
         }
 
         let mut child = cmd
@@ -324,16 +329,16 @@ impl WhisperModel {
         }
 
         // Check if output file exists
-        if !output_txt.exists() {
+        if !output_file.exists() {
             return Err(format!(
                 "Output file not created: {}. Whisper might have failed silently.",
-                output_txt.display()
+                output_file.display()
             ));
         }
 
-        // Read output file (whisper adds .txt to input filename)
-        let result_text = fs::read_to_string(&output_txt)
-            .map_err(|e| format!("Failed to read output file {}: {}", output_txt.display(), e))?;
+        // Read output file
+        let result_text = fs::read_to_string(&output_file)
+            .map_err(|e| format!("Failed to read output file {}: {}", output_file.display(), e))?;
 
         println!("✅ Transcription complete: {} chars", result_text.len());
         if result_text.is_empty() {
@@ -342,7 +347,7 @@ impl WhisperModel {
 
         // Cleanup
         let _ = fs::remove_file(&temp_wav);
-        let _ = fs::remove_file(&output_txt);
+        let _ = fs::remove_file(&output_file);
 
         Ok(result_text.trim().to_string())
     }
