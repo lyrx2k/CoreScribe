@@ -103,6 +103,7 @@ struct MyApp {
     cancel_flag: Arc<AtomicBool>,
     pending_dialog: Option<AppDialog>,
     update_status: UpdateStatus,
+    auto_checked: bool,
 }
 
 impl Default for MyApp {
@@ -124,6 +125,7 @@ impl Default for MyApp {
             cancel_flag: Arc::new(AtomicBool::new(false)),
             pending_dialog: None,
             update_status: UpdateStatus::Idle,
+            auto_checked: false,
         }
     }
 }
@@ -132,6 +134,22 @@ impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         ctx.set_visuals(egui::Visuals::dark());
         ctx.set_pixels_per_point(1.2);
+
+        // Auto-check for updates on first run
+        if !self.auto_checked {
+            self.auto_checked = true;
+            match updater::check_for_update() {
+                Ok(Some(latest)) => {
+                    self.update_status = UpdateStatus::Available(latest);
+                }
+                Ok(None) => {
+                    self.update_status = UpdateStatus::UpToDate;
+                }
+                Err(_) => {
+                    self.update_status = UpdateStatus::Idle;
+                }
+            }
+        }
 
         // Check for completed transcription
         if let Ok(mut result_guard) = self.result.try_lock()
@@ -674,7 +692,7 @@ impl MyApp {
                     UpdateStatus::Available(tag) => {
                         ui.colored_label(
                             egui::Color32::from_rgb(255, 180, 80),
-                            format!("v{} available", tag),
+                            format!("{} available", tag),
                         );
                         if ui.button("Update Now").clicked() {
                             self.pending_dialog = Some(AppDialog {
