@@ -53,10 +53,8 @@ enum Tab {
 #[derive(Debug, Clone, PartialEq)]
 enum UpdateStatus {
     Idle,
-    Checking,
     UpToDate,
     Available(String),
-    Downloading,
     Error(String),
 }
 
@@ -696,7 +694,6 @@ impl MyApp {
                             format!("Error: {}", e),
                         );
                     }
-                    _ => {}
                 }
             });
         });
