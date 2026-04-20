@@ -34,5 +34,5 @@ jobs:
         uses: ncipollo/release-action@v1
         with:
           artifacts: "target/release/corescribe.exe"
-          generate_release_notes: true
+          generateReleaseNotes: true
           token: ${{ secrets.GITHUB_TOKEN }}
