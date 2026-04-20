@@ -11,7 +11,7 @@
 [![Download CoreScribe](https://img.shields.io/badge/Download-Latest%20Release-brightgreen?style=for-the-badge&logo=windows)](https://github.com/lyrx2k/CoreScribe/releases/latest)
 
 > [!IMPORTANT]
-> **Latest Release Integrity (v0.1.3)**
+> **Latest Release Integrity (v0.1.6)**
 >
 > To ensure you are using the authentic build, you can verify the executable:
 > - **SHA-256:** `89e5fa2fea2d8576e5ea15e2603e5c18a4bbd2fcbe1547fd0935450930809be2`
