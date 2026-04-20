@@ -583,12 +583,16 @@ impl MyApp {
         ui.label("Transcription Result");
         ui.add_space(6.0);
 
-        let available_height = ui.available_height() - 50.0;
-        egui::TextEdit::multiline(&mut self.output_text)
-            .desired_rows((available_height / 20.0) as usize)
-            .desired_width(f32::INFINITY)
-            .font(egui::TextStyle::Body)
-            .show(ui);
+        let available_height = (ui.available_height() - 50.0).clamp(120.0, 400.0);
+        egui::ScrollArea::vertical()
+            .max_height(available_height)
+            .show(ui, |ui| {
+                egui::TextEdit::multiline(&mut self.output_text)
+                    .desired_rows(10)
+                    .desired_width(f32::INFINITY)
+                    .font(egui::TextStyle::Body)
+                    .show(ui);
+            });
 
         // Footer with copy button and status
         ui.add_space(10.0);
