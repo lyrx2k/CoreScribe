@@ -54,23 +54,27 @@ pub fn download_and_install(tag: &str) -> Result<(), String> {
     let current_exe =
         std::env::current_exe().map_err(|e| format!("Failed to get current exe path: {}", e))?;
 
-    let current_dir = current_exe
-        .parent()
-        .ok_or("Failed to get exe directory".to_string())?;
-
     #[cfg(target_os = "windows")]
     {
-        let cmd = format!(
-            "cmd /c \"ping -n 3 127.0.0.1 > nul & move /y \\\"{}\\\" \\\"{}\\\" & start \\\"\\\" \\\"{}\\\"\"",
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+        let bat = format!(
+            "@echo off\r\nping -n 3 127.0.0.1 > nul\r\nmove /y \"{}\" \"{}\"\r\nstart \"\" \"{}\"\r\ndel \"%~f0\"\r\n",
             update_exe.display(),
             current_exe.display(),
             current_exe.display()
         );
+
+        let bat_path = temp_dir.join("corescribe_update.bat");
+        fs::write(&bat_path, bat.as_bytes())
+            .map_err(|e| format!("Failed to write update script: {}", e))?;
+
         std::process::Command::new("cmd")
-            .args(&["/c", &cmd])
-            .current_dir(current_dir)
+            .args(&["/c", &bat_path.to_string_lossy().to_string()])
+            .creation_flags(CREATE_NO_WINDOW)
             .spawn()
-            .map_err(|e| format!("Failed to spawn update process: {}", e))?;
+            .map_err(|e| format!("Failed to spawn updater: {}", e))?;
     }
 
     std::process::exit(0);

@@ -181,7 +181,11 @@ impl eframe::App for MyApp {
                 });
             } else {
                 self.stage = ProcessStage::Done;
-                self.status = if self.auto_save { "Done! Saving...".to_string() } else { "Done!".to_string() };
+                self.status = if self.auto_save {
+                    "Done! Saving...".to_string()
+                } else {
+                    "Done!".to_string()
+                };
                 let filtered = if self.show_timestamps {
                     result
                 } else {
@@ -583,7 +587,7 @@ impl MyApp {
         ui.label("Transcription Result");
         ui.add_space(6.0);
 
-        let available_height = (ui.available_height() - 50.0).clamp(120.0, 400.0);
+        let available_height = (ui.available_height() - 50.0).clamp(115.0, 400.0);
         egui::ScrollArea::vertical()
             .max_height(available_height)
             .show(ui, |ui| {
