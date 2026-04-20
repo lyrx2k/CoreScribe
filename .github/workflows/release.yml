@@ -25,6 +25,7 @@ jobs:
         run: cargo build --release
 
       - name: List build outputs
+        shell: bash
         run: ls -la target/release || true
 
       - name: Create & Publish Release
