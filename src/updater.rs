@@ -30,29 +30,55 @@ pub fn check_for_update() -> Result<Option<String>, String> {
 }
 
 pub fn download_and_install(tag: &str) -> Result<(), String> {
+    let temp_dir = std::env::temp_dir();
+    let log_path = temp_dir.join("corescribe_update.log");
+    let mut log = fs::File::create(&log_path).unwrap();
+
+    macro_rules! log {
+        ($($arg:tt)*) => {{
+            let line = format!($($arg)*);
+            use std::io::Write;
+            let _ = writeln!(log, "{}", line);
+        }};
+    }
+
     let url = format!(
         "https://github.com/{}/releases/download/{}/corescribe.exe",
         REPO, tag
     );
-    println!("Downloading from: {}", url);
+    log!("Downloading from: {}", url);
 
     let response = ureq::get(&url)
         .call()
-        .map_err(|e| format!("Failed to download: {}", e))?;
+        .map_err(|e| { log!("Download failed: {}", e); format!("Failed to download: {}", e) })?;
 
-    let temp_dir = std::env::temp_dir();
+    log!("Download response OK, status: {}", response.status());
+
     let update_exe = temp_dir.join("corescribe_update.exe");
+    log!("Saving to: {}", update_exe.display());
 
-    let mut file =
-        fs::File::create(&update_exe).map_err(|e| format!("Failed to create temp file: {}", e))?;
+    let mut file = fs::File::create(&update_exe)
+        .map_err(|e| { log!("Create file failed: {}", e); format!("Failed to create temp file: {}", e) })?;
 
-    std::io::copy(&mut response.into_reader(), &mut file)
-        .map_err(|e| format!("Failed to write file: {}", e))?;
+    let bytes = std::io::copy(&mut response.into_reader(), &mut file)
+        .map_err(|e| { log!("Write failed: {}", e); format!("Failed to write file: {}", e) })?;
 
+    log!("Downloaded {} bytes", bytes);
     drop(file);
 
-    let current_exe =
-        std::env::current_exe().map_err(|e| format!("Failed to get current exe path: {}", e))?;
+    let file_size = fs::metadata(&update_exe).map(|m| m.len()).unwrap_or(0);
+    log!("File size on disk: {} bytes", file_size);
+
+    if file_size < 100_000 {
+        let content = fs::read_to_string(&update_exe).unwrap_or_default();
+        log!("File too small, content: {}", &content[..content.len().min(500)]);
+        return Err(format!("Downloaded file is too small ({} bytes) - likely an error page", file_size));
+    }
+
+    let current_exe = std::env::current_exe()
+        .map_err(|e| { log!("current_exe failed: {}", e); format!("Failed to get current exe: {}", e) })?;
+
+    log!("Current exe: {}", current_exe.display());
 
     #[cfg(target_os = "windows")]
     {
@@ -67,14 +93,20 @@ pub fn download_and_install(tag: &str) -> Result<(), String> {
         );
 
         let bat_path = temp_dir.join("corescribe_update.bat");
-        fs::write(&bat_path, bat.as_bytes())
-            .map_err(|e| format!("Failed to write update script: {}", e))?;
+        log!("Writing bat to: {}", bat_path.display());
+        log!("Bat content:\n{}", bat);
 
+        fs::write(&bat_path, bat.as_bytes())
+            .map_err(|e| { log!("Write bat failed: {}", e); format!("Failed to write update script: {}", e) })?;
+
+        log!("Spawning bat script...");
         std::process::Command::new("cmd")
             .args(&["/c", &bat_path.to_string_lossy().to_string()])
             .creation_flags(CREATE_NO_WINDOW)
             .spawn()
-            .map_err(|e| format!("Failed to spawn updater: {}", e))?;
+            .map_err(|e| { log!("Spawn failed: {}", e); format!("Failed to spawn updater: {}", e) })?;
+
+        log!("Bat spawned, exiting app...");
     }
 
     std::process::exit(0);
