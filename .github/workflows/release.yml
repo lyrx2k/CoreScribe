@@ -1,4 +1,4 @@
-name: Build Release
+name: Release
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - 'v*'
 
 jobs:
-  build:
+  release:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -16,8 +16,9 @@ jobs:
       - name: Build Release
         run: cargo build --release
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+      - name: Create & Publish Release
+        uses: ncipollo/release-action@v1
         with:
-          name: corescribe
-          path: target/release/corescribe.exe
+          artifacts: "target/release/corescribe.exe"
+          generateReleaseNotes: true
+          token: ${{ secrets.GITHUB_TOKEN }}
