@@ -16,6 +16,9 @@ jobs:
       - name: Build Release
         run: cargo build --release
 
+      - name: Check if exe exists
+        run: dir target\release\corescribe.exe
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
