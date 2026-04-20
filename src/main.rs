@@ -318,7 +318,14 @@ impl eframe::App for MyApp {
                                     std::process::exit(0);
                                 }
                                 PendingAction::UpdateApp(tag) => {
-                                    let _ = updater::download_and_install(&tag);
+                                    if let Err(e) = updater::download_and_install(&tag) {
+                                        self.pending_dialog = Some(AppDialog {
+                                            title: "Update Failed".to_string(),
+                                            message: format!("Failed to update: {}", e),
+                                            is_warning: true,
+                                            action: PendingAction::None,
+                                        });
+                                    }
                                 }
                                 PendingAction::None => {}
                             }
