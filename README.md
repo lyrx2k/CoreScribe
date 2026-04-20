@@ -14,7 +14,7 @@
 > **Latest Release Integrity (v0.1.3)**
 >
 > To ensure you are using the authentic build, you can verify the executable:
-> - **SHA-256:** `ea5899b76b2d8147f3054a3a12ea6504c41d16599b2a7791cf7bab1ff244e8fd`
+> - **SHA-256:** `89e5fa2fea2d8576e5ea15e2603e5c18a4bbd2fcbe1547fd0935450930809be2`
 >
 > *(Verify via PowerShell: `Get-FileHash .\CoreScribe.exe`)*
 
