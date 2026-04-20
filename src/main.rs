@@ -140,6 +140,15 @@ impl eframe::App for MyApp {
             self.auto_checked = true;
             match updater::check_for_update() {
                 Ok(Some(latest)) => {
+                    self.pending_dialog = Some(AppDialog {
+                        title: "Update Available".to_string(),
+                        message: format!(
+                            "CoreScribe {} is available.\n\nDownload and install?",
+                            latest
+                        ),
+                        is_warning: false,
+                        action: PendingAction::UpdateApp(latest.clone()),
+                    });
                     self.update_status = UpdateStatus::Available(latest);
                 }
                 Ok(None) => {
