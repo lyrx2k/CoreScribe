@@ -6,6 +6,20 @@
 
 ---
 
+## 🚀 Quick Start (Windows x64)
+
+[![Download CoreScribe](https://img.shields.io/badge/Download-Latest%20Release-brightgreen?style=for-the-badge&logo=windows)](https://github.com/lyrx2k/CoreScribe/releases/latest)
+
+> [!IMPORTANT]
+> **Latest Release Integrity (v0.1.3)**
+>
+> To ensure you are using the authentic build, you can verify the executable:
+> - **SHA-256:** `ea5899b76b2d8147f3054a3a12ea6504c41d16599b2a7791cf7bab1ff244e8fd`
+>
+> *(Verify via PowerShell: `Get-FileHash .\CoreScribe.exe`)*
+
+---
+
 ## 🎓 Why CoreScribe?
 
 Transcribing lectures, interviews, or study group recordings can be expensive and time-consuming. Most services charge by the minute or require monthly subscriptions. **CoreScribe** changes that by putting the power of AI directly on your computer.
