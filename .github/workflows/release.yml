@@ -5,20 +5,31 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: write
+  packages: write
+
 jobs:
   release:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - uses: dtolnay/rust-toolchain@stable
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Build Release
         run: cargo build --release
+
+      - name: List build outputs
+        run: ls -la target/release || true
 
       - name: Create & Publish Release
         uses: ncipollo/release-action@v1
         with:
           artifacts: "target/release/corescribe.exe"
-          generateReleaseNotes: true
+          generate_release_notes: true
           token: ${{ secrets.GITHUB_TOKEN }}
